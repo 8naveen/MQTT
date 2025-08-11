@@ -5,7 +5,7 @@
 #include <sys/msg.h>
 
 #define FTOK_PATH "msgqueue.key"
-#define FTOK_PROJ_ID 70
+#define FTOK_PROJ_ID 60
 #define MSG_TYPE 1
 
 struct mydata {
@@ -52,10 +52,10 @@ int main() {
         struct mydata user_data;
 
         char temp[10];
-        printf("Do you want to send data? (y/n):");
+        printf("Sending Data (y/n):");
         fgets(temp, sizeof(temp), stdin);
         if (temp[0] == 'n' || temp[0] == 'N')
-            break;
+            break; 
             
         printf("Enter description:");
         fgets(user_data.data, sizeof(user_data.data), stdin);
@@ -92,8 +92,8 @@ int main() {
             perror("malloc for receive failed");
             exit(1);
         }
-
-        if (msgrcv(msgid, recv_msg, data_size, MSG_TYPE, 0) == -1) {
+         if (msgrcv(msgid, recv_msg, data_size, MSG_TYPE, 0) == -1)
+        {
             perror("msgrcv failed");
             free(recv_msg);
             exit(1);
@@ -111,8 +111,6 @@ int main() {
         perror("Failed to delete message queue");
         exit(1);
     }
-
     printf("Deleted Message queue\n");
-
     return 0;
 }
