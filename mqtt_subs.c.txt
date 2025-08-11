@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "MQTTClient.h"
+
+#define ADDRESS     "tcp://localhost:1883"
+#define CLIENTID    "C_Subscriber"
+#define TOPIC       "my/test/topic"
+#define QOS         1
+#define TIMEOUT     10000L
+
+volatile MQTTClient_deliveryToken deliveredtoken;
+
+int messageArrived(void *context, char *topicName, int topicLen, MQTTClient_message *message) {
+    printf("Message arrived on topic: %s\n", topicName);
+    printf("Message length: %d bytes\n", message->payloadlen);
+
+    char *payload = (char *)message->payload;
+
+    // Print entire payload
+    printf("Payload:\n");
+    fwrite(payload, 1, message->payloadlen, stdout);
+    printf("\n");
+
+    MQTTClient_freeMessage(&message);
+    MQTTClient_free(topicName);
+    return 1;
+}
+
+int main() {
+    MQTTClient client;
+    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+    int rc;
+
+    MQTTClient_create(&client, ADDRESS, CLIENTID,
+        MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    conn_opts.keepAliveInterval = 20;
+    conn_opts.cleansession = 1;
+
+    MQTTClient_setCallbacks(client, NULL, NULL, messageArrived, NULL);
+
+    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
+        printf("Failed to connect, return code %d\n", rc);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Subscribed to topic '%s':", TOPIC);
+    MQTTClient_subscribe(client, TOPIC, QOS);
+
+    // Keep the program running to receive messages
+    while(1) {
+        sleep(1);
+    }
+
+    MQTTClient_disconnect(client, 10000);
+    MQTTClient_destroy(&client);
+    return rc;
+}
