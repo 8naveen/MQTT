@@ -3,21 +3,20 @@
 #include <string.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <unistd.h>
 
-#define FTOK_PATH "msgqueue.key"
-#define FTOK_PROJ_ID 60
+#define MAX_SIZE 2048
 #define MSG_TYPE 1
+#define FTOK_PATH "msgqueue.key"  
+#define FTOK_PROJ_ID 70
 
-struct mydata {
-
-    char data[2048];
-};
-
+// Define the message structure
 struct message {
     long msg_type;
-    char data[];
+    char msg_text[MAX_SIZE];
 };
 
+//  generate message queue ID
 int get_msg_queue_id() 
 {
     FILE *fp = fopen(FTOK_PATH, "a+");
@@ -26,6 +25,7 @@ int get_msg_queue_id()
         perror("Failed to create/access ftok file");
         exit(1);
     }
+    
     fclose(fp);
 
     key_t key = ftok(FTOK_PATH, FTOK_PROJ_ID);
@@ -48,69 +48,45 @@ int get_msg_queue_id()
 int main() {
     int msgid = get_msg_queue_id();
 
-    while (1) {
-        struct mydata user_data;
+    struct message msg;
+    msg.msg_type = MSG_TYPE;
 
-        char temp[10];
-        printf("Sending Data (y/n):");
-        fgets(temp, sizeof(temp), stdin);
-        if (temp[0] == 'n' || temp[0] == 'N')
-            break; 
-            
-        printf("Enter description:");
-        fgets(user_data.data, sizeof(user_data.data), stdin);
-        user_data.data[strcspn(user_data.data, "\n")] = '\0';
-
-        size_t data_size = sizeof(struct mydata);
-        size_t msg_size = sizeof(struct message) + data_size;
-
-        struct message *msg = malloc(msg_size);
-        if (!msg)
-        {
-            perror("malloc failed");
-            exit(1);
-        }
-
-        msg->msg_type = MSG_TYPE;
-        memcpy(msg->data, &user_data, data_size);
-
-        if (msgsnd(msgid, msg, data_size, 0) == -1) 
-        {
-            perror("msgsnd failed");
-            free(msg);
-            exit(1);
-        }
-
-        printf("Data sent to queue\n");
-
-        free(msg);
-
-        // message receive  immediately
-        struct message *recv_msg = malloc(msg_size);
-        if (!recv_msg) 
-        {
-            perror("malloc for receive failed");
-            exit(1);
-        }
-         if (msgrcv(msgid, recv_msg, data_size, MSG_TYPE, 0) == -1)
-        {
-            perror("msgrcv failed");
-            free(recv_msg);
-            exit(1);
-        }
-
-        struct mydata received;
-        memcpy(&received, recv_msg->data, data_size);
-        printf("Received Data:%s\n", received.data);
-        free(recv_msg);
-    }
-
-    // Delete the queue
-    if (msgctl(msgid, IPC_RMID, NULL) == -1)
+    
+    printf("Enter message to send: ");//send the message
+    if (fgets(msg.msg_text, MAX_SIZE, stdin) == NULL) 
     {
-        perror("Failed to delete message queue");
+        fprintf(stderr, "No input provided.\n");
         exit(1);
     }
-    printf("Deleted Message queue\n");
+
+     //Remove newline if present
+    size_t len = strlen(msg.msg_text);
+
+
+    // Send the message
+    if (msgsnd(msgid, &msg, len , 0) == -1) {
+        perror("msgsnd failed");
+        exit(1);
+    }
+
+    printf("Message is sent: %s", msg.msg_text);
+
+    // received the Immediately message 
+    if (msgrcv(msgid, &msg, MAX_SIZE, MSG_TYPE, 0) == -1) {
+        perror("Message received failed");
+        exit(1);
+    }
+
+    printf("Message received: %s", msg.msg_text);
+
+    
+    if (msgctl(msgid, IPC_RMID, NULL) == -1) 
+    {
+        perror("msgctl (remove queue) failed");
+        exit(1);
+    }
+
+    printf("deleted Message queue.\n");
+
     return 0;
 }
