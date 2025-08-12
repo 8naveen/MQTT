@@ -4,7 +4,6 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-
 #define MAX_SIZE 2048
 #define MSG_TYPE 1
 #define FTOK_PATH "msgqueue.key"  
